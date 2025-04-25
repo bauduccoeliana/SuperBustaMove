@@ -3,14 +3,16 @@ import { Scene } from "phaser";
 export class Game extends Scene {
   constructor() {
     super("Game");
-    this.colors = ["red", "green", "blue", "yellow"];
+    this.colors = ["red", "green", "blue", "yellow", "purple", "pink"];
     this.filaSize = 3; // mostramos la próxima
     this.boundaryWidth = 280;
     this.boundaryHeight = 600;
-    this.gridSize = 40;
+    this.gridSize = 50;
     this.offsetX = 512 - this.boundaryWidth / 2 + this.gridSize / 2;
     this.offsetY = 405 - this.boundaryHeight / 2 + this.gridSize / 2;
     this.canShoot = true; // sólo un disparo a la vez
+    this.rows = 6;
+    this.cols = 7;
   }
 
   create() {
@@ -37,6 +39,10 @@ export class Game extends Scene {
     this.filaSprites = this.add.group();
     this.balls = this.physics.add.group();
     this.wallGroup = this.physics.add.staticGroup();
+    // Matriz de nulls para saber qué celda está ocupada
+    this.grid = Array.from({ length: this.rows }, () =>
+      Array(this.cols).fill(null)
+    );
 
     // — Próximas bolas —
     for (let i = 0; i < this.filaSize; i++) {
@@ -53,12 +59,11 @@ export class Game extends Scene {
     this.cannonLine = this.add.graphics();
     this.input.on("pointerdown", (p) => this.shootBall(p));
 
-    // — Collider bola en movimiento vs muro estático —
     this.physics.add.collider(
       this.balls,
       this.wallGroup,
       this.handleBallCollision,
-      null,
+      (moving, hit) => !moving.attached,
       this
     );
 
@@ -94,15 +99,12 @@ export class Game extends Scene {
   }
 
   createWall() {
-    const cols = 7,
-      rows = 6;
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const xOffset = row % 2 === 1 ? this.gridSize / 2 : 0;
-        const x = this.offsetX + col * this.gridSize + xOffset;
+    for (let row = 0; row < this.rows; row++) {
+      for (let col = 0; col < this.cols; col++) {
+        const x = this.offsetX + col * this.gridSize;
         const y = this.offsetY + row * this.gridSize;
         const color = Phaser.Utils.Array.GetRandom(this.colors);
-        this.createStaticBall(x, y, color);
+        this.createStaticBallGrid(row, col, color);
       }
     }
   }
@@ -111,12 +113,11 @@ export class Game extends Scene {
     if (!this.canShoot) return;
     this.canShoot = false;
 
-    // tomar color y refrescar fila
     const color = this.nextColors.shift();
     this.nextColors.push(Phaser.Utils.Array.GetRandom(this.colors));
     this.renderFila();
 
-    // crear bola dinámica
+    //bola dinámica
     const ball = this.balls
       .create(this.launchPosition.x, this.launchPosition.y, `ball-${color}`)
       .setOrigin(0.5)
@@ -126,7 +127,7 @@ export class Game extends Scene {
     ball.attached = false;
     ball.setBounce(1).setCollideWorldBounds(true).body.setAllowGravity(false);
 
-    // velocidad en dirección del puntero
+    //velocidad
     const angle = Phaser.Math.Angle.Between(
       this.launchPosition.x,
       this.launchPosition.y,
@@ -136,76 +137,101 @@ export class Game extends Scene {
     ball.setVelocity(Math.cos(angle) * 800, Math.sin(angle) * 800);
   }
 
-  handleBallCollision(movingBall, hitBall) {
-    if (movingBall.attached) return;
-    movingBall.attached = true;
+  createStaticBallGrid(row, col, color) {
+    row = Phaser.Math.Clamp(row, 0, this.rows - 1);
+    col = Phaser.Math.Clamp(col, 0, this.cols - 1);
 
-    // detener y remover disparada
-    movingBall.body.setVelocity(0);
-    this.physics.world.disable(movingBall);
-    this.balls.remove(movingBall, false, false);
-    movingBall.destroy();
-
-    // —— decidir en qué celda hex colocarla ——
-    const hitGrid = this.getAlignedPosition(hitBall.x, hitBall.y);
-    // offsets de vecinos según fila par/impar
-    const nbrs =
-      hitGrid.row % 2 === 0
-        ? [
-            { dr: -1, dc: 0 },
-            { dr: -1, dc: 1 },
-            { dr: 0, dc: 1 },
-            { dr: 1, dc: 1 },
-            { dr: 1, dc: 0 },
-            { dr: 0, dc: -1 },
-          ]
-        : [
-            { dr: -1, dc: -1 },
-            { dr: -1, dc: 0 },
-            { dr: 0, dc: 1 },
-            { dr: 1, dc: 0 },
-            { dr: 1, dc: -1 },
-            { dr: 0, dc: -1 },
-          ];
-
-    let best = null,
-      bestDist = Infinity;
-    // buscar vecino libre más cercano al punto de colisión
-    nbrs.forEach((o) => {
-      const r = hitGrid.row + o.dr;
-      const c = hitGrid.col + o.dc;
-      const x =
-        this.offsetX + c * this.gridSize + (r % 2 ? this.gridSize / 2 : 0);
-      const y = this.offsetY + r * this.gridSize;
-      // existe ya bola ahí?
-      const occ = this.wallGroup
-        .getChildren()
-        .some((b) => b.x === x && b.y === y);
-      if (!occ) {
-        const d = Phaser.Math.Distance.Between(
-          movingBall.x,
-          movingBall.y,
-          x,
-          y
-        );
-        if (d < bestDist) {
-          bestDist = d;
-          best = { x, y };
-        }
+    if (this.grid[row][col]) {
+      // si el objeto ya fue destruido por animación
+      if (!this.grid[row][col].active) {
+        this.grid[row][col] = null;
+      } else {
+        return this.grid[row][col];
       }
-    });
-
-    // fallback sobre su propia posición si no hay vecino libre
-    if (!best) {
-      const a = this.getAlignedPosition(movingBall.x, movingBall.y);
-      best = { x: a.x, y: a.y };
     }
 
-    // crear bola estática y chequear cluster
-    const staticBall = this.createStaticBall(best.x, best.y, movingBall.color);
+    const x = this.offsetX + col * this.gridSize;
+    const y = this.offsetY + row * this.gridSize;
+    const b = this.wallGroup
+      .create(x, y, `ball-${color}`)
+      .setOrigin(0.5)
+      .setDisplaySize(this.gridSize, this.gridSize);
+
+    const radius = this.gridSize / 2 - 2;
+    const offset = (this.gridSize - radius * 2) / 2;
+    b.body.setCircle(radius, offset, offset);
+
+    b.row = row;
+    b.col = col;
+    b.color = color;
+
+    this.grid[row][col] = b; //guarda en la matriz ocupada
+
+    return b;
+  }
+
+  checkCluster(start) {
+    const stack = [start],
+      visited = new Set(),
+      cluster = [];
+    while (stack.length) {
+      const b = stack.pop();
+      const key = `${b.row},${b.col}`;
+      if (visited.has(key)) continue;
+      visited.add(key);
+      cluster.push(b);
+      this.getHexNeighbors(b)
+        .filter((nb) => nb.color === start.color)
+        .forEach((nb) => stack.push(nb));
+    }
+    if (cluster.length >= 3) {
+      cluster.forEach((b) => b.destroy());
+      this.removeFloatingBalls();
+    }
+  }
+
+  handleBallCollision(moving, hit) {
+    
+    // 1) Detener y quitar la bola dinámica
+    moving.body.setVelocity(0);
+    this.physics.world.disable(moving);
+
+    const hitRow = hit.row;
+    const hitCol = hit.col;
+
+    // 2) Solo offsets con dr >= 0 (misma fila o filas inferiores)
+    const neighborOffsets = [
+      { dr: 0, dc: -1 }, // izquierda, misma fila
+      { dr: 0, dc: 1 }, // derecha, misma fila
+      { dr: 1, dc: 0 }, // justo debajo
+      { dr: 1, dc: -1 }, // debajo-izquierda
+      { dr: 1, dc: 1 }, // debajo-derecha
+    ];
+
+    let staticBall = null;
+
+    // 3) Probar cada vecino en orden fijo
+    for (let { dr, dc } of neighborOffsets) {
+      const r = Phaser.Math.Clamp(hitRow + dr, 0, this.rows - 1);
+      const c = Phaser.Math.Clamp(hitCol + dc, 0, this.cols - 1);
+      // si está libre…
+      if (!this.grid[r][c]) {
+        staticBall = this.createStaticBallGrid(r, c, moving.color);
+        break;
+      }
+    }
+
+    // 4) Si no quedó en ninguno de los de dr>=0,
+    //    lo forzamos al impacto (no hay huecos ni abajo ni al lado)
+    if (!staticBall) {
+      staticBall = this.createStaticBallGrid(hitRow, hitCol, moving.color);
+    }
+
+    // 5) Destruir bola dinámica y cluster
+    this.balls.remove(moving, true, true); //destruye directo
     this.checkCluster(staticBall);
 
-    // reactivar disparo
+    // 6) Reactivar disparo
     this.time.delayedCall(100, () => (this.canShoot = true));
   }
 
@@ -221,37 +247,6 @@ export class Game extends Scene {
     return { x, y, row, col };
   }
 
-  createStaticBall(x, y, color) {
-    // redondear posición para evitar acumulaciones pequeñas
-    x = Math.round(x);
-    y = Math.round(y);
-
-    const ball = this.wallGroup.create(x, y, `ball-${color}`);
-    ball.setOrigin(0.5).setDisplaySize(this.gridSize, this.gridSize);
-    ball.body.setCircle(this.gridSize / 2 - 2);
-    ball.color = color;
-    return ball;
-  }
-
-  checkCluster(startBall) {
-    const toCheck = [startBall];
-    const visited = new Set();
-    const cluster = [];
-    while (toCheck.length) {
-      const b = toCheck.pop();
-      if (!b || visited.has(b)) continue;
-      visited.add(b);
-      cluster.push(b);
-      this.getNeighbors(b).forEach((n) => {
-        if (n.color === startBall.color) toCheck.push(n);
-      });
-    }
-    if (cluster.length >= 3) {
-      cluster.forEach((b) => b.destroy());
-      this.removeFloatingBalls();
-    }
-  }
-
   getNeighbors(ball) {
     return this.wallGroup.getChildren().filter((b) => {
       if (b === ball) return false;
@@ -262,32 +257,78 @@ export class Game extends Scene {
     });
   }
 
-  removeFloatingBalls() {
-    const visited = new Set();
-    const toCheck = [];
+  //balls vecinas en el grid hex
+  getHexNeighbors(ball) {
+    const { row, col } = ball;
+    // offsets para filas pares/impares
+    const offsets =
+      row % 2 === 0
+        ? [
+            [-1, 0],
+            [-1, 1],
+            [0, 1],
+            [1, 1],
+            [1, 0],
+            [0, -1],
+          ]
+        : [
+            [-1, -1],
+            [-1, 0],
+            [0, 1],
+            [1, 0],
+            [1, -1],
+            [0, -1],
+          ];
 
-    // Empezamos desde las bolas conectadas al techo
+    const neighbors = [];
+    offsets.forEach(([dr, dc]) => {
+      const r = row + dr;
+      const c = col + dc;
+      //límites
+      if (r < 0 || c < 0 || r >= this.rows || c >= this.cols) return;
+      // busca una bola en esa celda
+      this.wallGroup.getChildren().forEach((b) => {
+        if (b.row === r && b.col === c) {
+          neighbors.push(b);
+        }
+      });
+    });
+    return neighbors;
+  }
+
+  removeFloatingBalls() {
+    const visited = new Set(),
+      queue = [];
+
     this.wallGroup.getChildren().forEach((b) => {
-      if (b.y <= this.offsetY + this.gridSize) toCheck.push(b);
+      //todas las bolas de la fila superior (row 0)
+      if (b.row === 0) {
+        visited.add(`${b.row},${b.col}`);
+        queue.push(b);
+      }
     });
 
-    while (toCheck.length) {
-      const b = toCheck.pop();
-      if (visited.has(b)) continue;
-      visited.add(b);
-      this.getNeighbors(b).forEach((n) => toCheck.push(n));
+    while (queue.length) {
+      const b = queue.shift(); //BFS para marcar todas las conectadas
+      this.getHexNeighbors(b).forEach((nb) => {
+        const key = `${nb.row},${nb.col}`;
+        if (!visited.has(key)) {
+          visited.add(key);
+          queue.push(nb);
+        }
+      });
     }
 
-    // Animamos las bolas que no están conectadas al techo
     this.wallGroup.getChildren().forEach((b) => {
-      if (!visited.has(b)) {
-        this.wallGroup.remove(b); // remover del grupo estático
+      const key = `${b.row},${b.col}`; //no están en visited → CAEN
+      if (!visited.has(key)) {
         this.tweens.add({
-          targets: b,
-          y: b.y + 1000,
+          targets: b, //libera celda  b.row, b.col  ya no ocupada y animamos la caída
+          y: b.y + 100,
           alpha: 0,
-          duration: 800,
+          duration: 500,
           onComplete: () => {
+            this.grid[b.row][b.col] = null;
             b.destroy();
           },
         });
