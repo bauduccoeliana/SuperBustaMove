@@ -1,19 +1,20 @@
 import { Scene } from "phaser";
 
-export class Game extends Scene {
-  constructor() {
-    super("Game");
-    this.colors = ["red", "green", "blue", "yellow", "purple", "pink"];
-    this.nextCount = 3;
-    this.gridSize = 40;
-    this.boundary = { width: 282, height: 595 };
-    this.origin = { x: 512, y: 405 };
-    this.launchPos = { x: 512, y: 620 };
-    this.canShoot = true;
-    this.rows = 12;
-    this.cols = 7;
-  }
+export class Game2 extends Scene {
+    constructor () {
+        super("Game2");
+        this.colors = ["red", "green", "blue", "yellow", "purple", "pink"];
+        this.nextCount = 3;
+        this.gridSize = 40;
+        this.boundary = { width: 280, height: 600 };
+        this.origin = { x: 512, y: 405 };
+        this.launchPos = { x: 512, y: 620 };
+        this.canShoot = true;
+        this.rows = 12;
+        this.cols = 7;
+    }
 
+    
   create() {
     // Mundo y límite
     const { width, height } = this.boundary;
@@ -25,7 +26,6 @@ export class Game extends Scene {
     );
     this.add
       .rectangle(this.origin.x, this.origin.y, width, height, 0xffffff, 0.1)
-      .setDepth(-1)
       .setStrokeStyle(2, 0xffffff, 0.3);
 
     // Grilla de bolas
@@ -35,19 +35,19 @@ export class Game extends Scene {
     );
     this.initWall();
 
-    //prox balls
+    // Próximas bolas
     this.nextColors = [];
     for (let i = 0; i < this.nextCount; i++) {
       this.nextColors.push(Phaser.Utils.Array.GetRandom(this.colors));
     }
     this.renderNext();
 
-    //puntero
+    // Disparo
     this.input.setDefaultCursor("crosshair");
     this.aimLine = this.add.graphics();
     this.input.on("pointerdown", (p) => this.shoot(p));
 
-    //colision
+    // Colisión bolas disparo vs pared
     this.physics.add.collider(
       this.balls,
       this.balls,
@@ -56,11 +56,11 @@ export class Game extends Scene {
       this
     );
 
+    // Fondo y game over
     this.add
-      .image(this.origin.x, this.origin.y - 25, "fondo1")
+      .image(this.origin.x, this.origin.y - 25, "fondo2")
       .setDepth(-1)
       .setScale(1.02);
-      //gameoverline
     this.gameOverY = this.origin.y + height / 2 - 180;
     this.drawGameOverLine();
   }
@@ -70,7 +70,6 @@ export class Game extends Scene {
     this.checkGameOver();
   }
 
-  //grid balls
   initWall() {
     for (let r = 0; r < this.rows - 5; r++) {
       for (let c = 0; c < this.cols; c++) {
@@ -79,8 +78,7 @@ export class Game extends Scene {
     }
   }
 
-  //celdas de grilla
-  addCell(row, col, color) { 
+  addCell(row, col, color) {
     const x =
       this.origin.x -
       this.boundary.width / 2 +
@@ -105,7 +103,6 @@ export class Game extends Scene {
     this.grid[row][col] = cell;
   }
 
-  //fila prox
   renderNext() {
     if (this.nextGroup) this.nextGroup.clear(true, true);
     this.nextGroup = this.add.group();
@@ -119,7 +116,6 @@ export class Game extends Scene {
     });
   }
 
-  //disparo balls
   shoot(pointer) {
     if (!this.canShoot) return;
     this.canShoot = false;
@@ -146,7 +142,6 @@ export class Game extends Scene {
     shot.setVelocity(Math.cos(angle) * 800, Math.sin(angle) * 800);
   }
 
-  //colision pared/balls
   handleCollision(shot, cell) {
     shot.body.setVelocity(0);
     this.physics.world.disable(shot);
@@ -158,7 +153,6 @@ export class Game extends Scene {
     this.time.delayedCall(100, () => (this.canShoot = true));
   }
 
-  //busca posición vacía en el grid
   findGridPos(r, c, shot) {
     const neighbors = [
       [0, -1],
@@ -179,7 +173,6 @@ export class Game extends Scene {
     this.addCell(row, col, color);
   }
 
-  //arma conjunto-color
   checkCluster(start) {
     const stack = [start],
       visited = new Set(),
@@ -203,7 +196,6 @@ export class Game extends Scene {
     }
   }
 
-  //busca vecinos de = color
   getNeighbors(ball) {
     const { row, col } = ball;
     const offs =
@@ -235,7 +227,6 @@ export class Game extends Scene {
       .filter((n) => n);
   }
 
-  //elimina balls sueltas
   removeFloating() {
     const visited = new Set(),
       queue = [];
@@ -271,7 +262,6 @@ export class Game extends Scene {
     });
   }
 
-  //linea disparo
   drawAimLine() {
     this.aimLine.clear();
     this.aimLine.lineStyle(2, 0xffffff, 1);
@@ -282,7 +272,6 @@ export class Game extends Scene {
     this.aimLine.strokePath();
   }
 
-  //linea gameover
   drawGameOverLine() {
     this.add
       .graphics()
@@ -293,14 +282,13 @@ export class Game extends Scene {
       .strokePath();
   }
 
-  //update gameover
   checkGameOver() {
     if (
       this.grid
         .flat()
         .some((b) => b && b.y + this.gridSize / 2 >= this.gameOverY)
     ) {
-      this.scene.start("Game2");
+      this.scene.start("GameOver");
     }
   }
 }

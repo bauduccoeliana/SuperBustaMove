@@ -24,8 +24,8 @@ export class Preloader extends Scene {
     this.load.image("ball-purple", "/assets/objects/purple.png");
     this.load.image("ball-pink", "/assets/objects/pink.png");
     this.load.image("fondo1", "public/assets/fondo.jpg");
+    this.load.image("fondo2", "public/assets/fondo2.png");
     this.load.image("rectangle", "/assets/rectangle.png");
-
     this.load.video("introgba", "assets/videos/introgba.mp4");
     this.load.video("introtait", "assets/videos/introtait.mp4");
     this.load.video("introubi", "assets/videos/introubi.mp4");

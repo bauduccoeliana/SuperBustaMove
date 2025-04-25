@@ -1,5 +1,6 @@
 import { Boot } from "./scenes/Boot";
 import { Game } from "./scenes/Game";
+import { Game2 } from "./scenes/Game2";
 import { GameOver } from "./scenes/GameOver";
 import { IntroGb } from "./scenes/IntroGb";
 import { IntroUbi } from "./scenes/IntroUbi";
@@ -26,6 +27,7 @@ const config = {
   scene: [
     Boot,
     Game,
+    Game2,
     GameOver,
     IntroGb,
     IntroTait,
