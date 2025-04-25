@@ -4,170 +4,172 @@ export class Game extends Scene {
   constructor() {
     super("Game");
     this.colors = ["red", "green", "blue", "yellow", "purple", "pink"];
-    this.filaSize = 3; // mostramos la próxima
-    this.boundaryWidth = 280;
-    this.boundaryHeight = 600;
-    this.gridSize = 50;
-    this.offsetX = 512 - this.boundaryWidth / 2 + this.gridSize / 2;
-    this.offsetY = 405 - this.boundaryHeight / 2 + this.gridSize / 2;
-    this.canShoot = true; // sólo un disparo a la vez
-    this.rows = 6;
+    this.nextCount = 3;
+    this.gridSize = 40;
+    this.boundary = { width: 280, height: 600 };
+    this.origin = { x: 512, y: 405 };
+    this.launchPos = { x: 512, y: 620 };
+    this.canShoot = true;
+    this.rows = 5;
     this.cols = 7;
   }
 
   create() {
-    // — Mundo y marco —
+    // Mundo y límite
+    const { width, height } = this.boundary;
     this.physics.world.setBounds(
-      512 - this.boundaryWidth / 2,
-      405 - this.boundaryHeight / 2,
-      this.boundaryWidth,
-      this.boundaryHeight
+      this.origin.x - width / 2,
+      this.origin.y - height / 2,
+      width,
+      height
     );
     this.add
-      .rectangle(
-        512,
-        405,
-        this.boundaryWidth,
-        this.boundaryHeight,
-        0xffffff,
-        0.1
-      )
+      .rectangle(this.origin.x, this.origin.y, width, height, 0xffffff, 0.1)
       .setStrokeStyle(2, 0xffffff, 0.3);
 
-    // — Grupos y datos —
-    this.nextColors = [];
-    this.filaSprites = this.add.group();
+    // Grilla de bolas
     this.balls = this.physics.add.group();
-    this.wallGroup = this.physics.add.staticGroup();
-    // Matriz de nulls para saber qué celda está ocupada
     this.grid = Array.from({ length: this.rows }, () =>
       Array(this.cols).fill(null)
     );
+    this.initWall();
 
-    // — Próximas bolas —
-    for (let i = 0; i < this.filaSize; i++) {
+    // Próximas bolas
+    this.nextColors = [];
+    for (let i = 0; i < this.nextCount; i++) {
       this.nextColors.push(Phaser.Utils.Array.GetRandom(this.colors));
     }
-    this.renderFila();
+    this.renderNext();
 
-    // — Muro en patrón hexagonal —
-    this.createWall();
-
-    // — Disparo —
-    this.launchPosition = { x: 512, y: 620 };
+    // Disparo
     this.input.setDefaultCursor("crosshair");
-    this.cannonLine = this.add.graphics();
-    this.input.on("pointerdown", (p) => this.shootBall(p));
+    this.aimLine = this.add.graphics();
+    this.input.on("pointerdown", (p) => this.shoot(p));
 
+    // Colisión bolas disparo vs pared
     this.physics.add.collider(
       this.balls,
-      this.wallGroup,
-      this.handleBallCollision,
-      (moving, hit) => !moving.attached,
+      this.balls,
+      (shot, cell) => this.handleCollision(shot, cell),
+      (shot, cell) => !cell.isShot,
       this
     );
 
-    // — Fondo y línea de game over —
-    this.add.image(512, 380, "fondo1").setDepth(-1).setScale(1.02);
-    this.gameOverLineY = 540;
+    // Fondo y game over
+    this.add
+      .image(this.origin.x, this.origin.y - 25, "fondo1")
+      .setDepth(-1)
+      .setScale(1.02);
+    this.gameOverY = this.origin.y + height / 2 - 180;
     this.drawGameOverLine();
   }
 
   update() {
-    // línea de puntería
-    this.cannonLine.clear();
-    this.cannonLine.lineStyle(2, 0xffffff, 1);
-    this.cannonLine.beginPath();
-    this.cannonLine.moveTo(this.launchPosition.x, this.launchPosition.y);
-    const p = this.input.activePointer;
-    this.cannonLine.lineTo(p.x, p.y);
-    this.cannonLine.strokePath();
-
+    this.drawAimLine();
     this.checkGameOver();
   }
 
-  renderFila() {
-    this.filaSprites.clear(true, true);
-    const startX = 400,
-      startY = 720;
-    this.nextColors.forEach((color, i) => {
-      this.add
-        .image(startX + i * this.gridSize, startY, `ball-${color}`)
+  initWall() {
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        this.addCell(r, c, Phaser.Utils.Array.GetRandom(this.colors));
+      }
+    }
+  }
+
+  addCell(row, col, color) {
+    const x =
+      this.origin.x -
+      this.boundary.width / 2 +
+      col * this.gridSize +
+      this.gridSize / 2;
+    const y =
+      this.origin.y -
+      this.boundary.height / 2 +
+      row * this.gridSize +
+      this.gridSize / 2;
+    const cell = this.balls
+      .create(x, y, `ball-${color}`)
+      .setOrigin(0.5)
+      .setDisplaySize(this.gridSize, this.gridSize);
+
+    cell.body.setCircle(this.gridSize / 2 - 2);
+    cell.setImmovable(true);
+    cell.isShot = false;
+    cell.row = row;
+    cell.col = col;
+    cell.color = color;
+    this.grid[row][col] = cell;
+  }
+
+  renderNext() {
+    if (this.nextGroup) this.nextGroup.clear(true, true);
+    this.nextGroup = this.add.group();
+    const baseX = 400,
+      baseY = 720;
+    this.nextColors.forEach((col, i) => {
+      this.nextGroup
+        .create(baseX + i * this.gridSize, baseY, `ball-${col}`)
         .setOrigin(0.5)
         .setDisplaySize(this.gridSize, this.gridSize);
     });
   }
 
-  createWall() {
-    for (let row = 0; row < this.rows; row++) {
-      for (let col = 0; col < this.cols; col++) {
-        const x = this.offsetX + col * this.gridSize;
-        const y = this.offsetY + row * this.gridSize;
-        const color = Phaser.Utils.Array.GetRandom(this.colors);
-        this.createStaticBallGrid(row, col, color);
-      }
-    }
-  }
-
-  shootBall(pointer) {
+  shoot(pointer) {
     if (!this.canShoot) return;
     this.canShoot = false;
 
     const color = this.nextColors.shift();
     this.nextColors.push(Phaser.Utils.Array.GetRandom(this.colors));
-    this.renderFila();
+    this.renderNext();
 
-    //bola dinámica
-    const ball = this.balls
-      .create(this.launchPosition.x, this.launchPosition.y, `ball-${color}`)
+    const shot = this.balls
+      .create(this.launchPos.x, this.launchPos.y, `ball-${color}`)
       .setOrigin(0.5)
       .setDisplaySize(this.gridSize, this.gridSize);
-    ball.body.setCircle(this.gridSize / 2 - 2);
-    ball.color = color;
-    ball.attached = false;
-    ball.setBounce(1).setCollideWorldBounds(true).body.setAllowGravity(false);
+    shot.body.setCircle(this.gridSize / 2 - 2);
+    shot.color = color;
+    shot.isShot = true;
+    shot.setBounce(1).setCollideWorldBounds(true).body.setAllowGravity(false);
 
-    //velocidad
     const angle = Phaser.Math.Angle.Between(
-      this.launchPosition.x,
-      this.launchPosition.y,
+      this.launchPos.x,
+      this.launchPos.y,
       pointer.x,
       pointer.y
     );
-    ball.setVelocity(Math.cos(angle) * 800, Math.sin(angle) * 800);
+    shot.setVelocity(Math.cos(angle) * 800, Math.sin(angle) * 800);
   }
 
-  createStaticBallGrid(row, col, color) {
-    row = Phaser.Math.Clamp(row, 0, this.rows - 1);
-    col = Phaser.Math.Clamp(col, 0, this.cols - 1);
+  handleCollision(shot, cell) {
+    shot.body.setVelocity(0);
+    this.physics.world.disable(shot);
 
-    if (this.grid[row][col]) {
-      // si el objeto ya fue destruido por animación
-      if (!this.grid[row][col].active) {
-        this.grid[row][col] = null;
-      } else {
-        return this.grid[row][col];
-      }
+    const { row, col } = this.findGridPos(cell.row, cell.col, shot);
+    this.placeShot(row, col, shot.color);
+    shot.destroy();
+    this.checkCluster(this.grid[row][col]);
+    this.time.delayedCall(100, () => (this.canShoot = true));
+  }
+
+  findGridPos(r, c, shot) {
+    const neighbors = [
+      [0, -1],
+      [0, 1],
+      [1, 0],
+      [1, -1],
+      [1, 1],
+    ];
+    for (const [dr, dc] of neighbors) {
+      const nr = Phaser.Math.Clamp(r + dr, 0, this.rows - 1);
+      const nc = Phaser.Math.Clamp(c + dc, 0, this.cols - 1);
+      if (!this.grid[nr][nc]) return { row: nr, col: nc };
     }
+    return { row: r, col: c };
+  }
 
-    const x = this.offsetX + col * this.gridSize;
-    const y = this.offsetY + row * this.gridSize;
-    const b = this.wallGroup
-      .create(x, y, `ball-${color}`)
-      .setOrigin(0.5)
-      .setDisplaySize(this.gridSize, this.gridSize);
-
-    const radius = this.gridSize / 2 - 2;
-    const offset = (this.gridSize - radius * 2) / 2;
-    b.body.setCircle(radius, offset, offset);
-
-    b.row = row;
-    b.col = col;
-    b.color = color;
-
-    this.grid[row][col] = b; //guarda en la matriz ocupada
-
-    return b;
+  placeShot(row, col, color) {
+    this.addCell(row, col, color);
   }
 
   checkCluster(start) {
@@ -180,88 +182,22 @@ export class Game extends Scene {
       if (visited.has(key)) continue;
       visited.add(key);
       cluster.push(b);
-      this.getHexNeighbors(b)
-        .filter((nb) => nb.color === start.color)
-        .forEach((nb) => stack.push(nb));
+      this.getNeighbors(b)
+        .filter((n) => n.color === start.color)
+        .forEach((n) => stack.push(n));
     }
     if (cluster.length >= 3) {
-      cluster.forEach((b) => b.destroy());
-      this.removeFloatingBalls();
+      cluster.forEach((b) => {
+        this.grid[b.row][b.col] = null;
+        b.destroy();
+      });
+      this.removeFloating();
     }
-  }
-
-  handleBallCollision(moving, hit) {
-    
-    // 1) Detener y quitar la bola dinámica
-    moving.body.setVelocity(0);
-    this.physics.world.disable(moving);
-
-    const hitRow = hit.row;
-    const hitCol = hit.col;
-
-    // 2) Solo offsets con dr >= 0 (misma fila o filas inferiores)
-    const neighborOffsets = [
-      { dr: 0, dc: -1 }, // izquierda, misma fila
-      { dr: 0, dc: 1 }, // derecha, misma fila
-      { dr: 1, dc: 0 }, // justo debajo
-      { dr: 1, dc: -1 }, // debajo-izquierda
-      { dr: 1, dc: 1 }, // debajo-derecha
-    ];
-
-    let staticBall = null;
-
-    // 3) Probar cada vecino en orden fijo
-    for (let { dr, dc } of neighborOffsets) {
-      const r = Phaser.Math.Clamp(hitRow + dr, 0, this.rows - 1);
-      const c = Phaser.Math.Clamp(hitCol + dc, 0, this.cols - 1);
-      // si está libre…
-      if (!this.grid[r][c]) {
-        staticBall = this.createStaticBallGrid(r, c, moving.color);
-        break;
-      }
-    }
-
-    // 4) Si no quedó en ninguno de los de dr>=0,
-    //    lo forzamos al impacto (no hay huecos ni abajo ni al lado)
-    if (!staticBall) {
-      staticBall = this.createStaticBallGrid(hitRow, hitCol, moving.color);
-    }
-
-    // 5) Destruir bola dinámica y cluster
-    this.balls.remove(moving, true, true); //destruye directo
-    this.checkCluster(staticBall);
-
-    // 6) Reactivar disparo
-    this.time.delayedCall(100, () => (this.canShoot = true));
-  }
-
-  getAlignedPosition(px, py) {
-    const row = Math.round((py - this.offsetY) / this.gridSize);
-    const isOdd = row % 2 === 1;
-    const col = Math.round(
-      (px - this.offsetX - (isOdd ? this.gridSize / 2 : 0)) / this.gridSize
-    );
-    const x =
-      this.offsetX + col * this.gridSize + (isOdd ? this.gridSize / 2 : 0);
-    const y = this.offsetY + row * this.gridSize;
-    return { x, y, row, col };
   }
 
   getNeighbors(ball) {
-    return this.wallGroup.getChildren().filter((b) => {
-      if (b === ball) return false;
-      return (
-        Phaser.Math.Distance.Between(ball.x, ball.y, b.x, b.y) <=
-        this.gridSize * 1.1
-      );
-    });
-  }
-
-  //balls vecinas en el grid hex
-  getHexNeighbors(ball) {
     const { row, col } = ball;
-    // offsets para filas pares/impares
-    const offsets =
+    const offs =
       row % 2 === 0
         ? [
             [-1, 0],
@@ -279,51 +215,40 @@ export class Game extends Scene {
             [1, -1],
             [0, -1],
           ];
-
-    const neighbors = [];
-    offsets.forEach(([dr, dc]) => {
-      const r = row + dr;
-      const c = col + dc;
-      //límites
-      if (r < 0 || c < 0 || r >= this.rows || c >= this.cols) return;
-      // busca una bola en esa celda
-      this.wallGroup.getChildren().forEach((b) => {
-        if (b.row === r && b.col === c) {
-          neighbors.push(b);
-        }
-      });
-    });
-    return neighbors;
+    return offs
+      .map(([dr, dc]) => {
+        const r = row + dr,
+          c = col + dc;
+        return r >= 0 && c >= 0 && r < this.rows && c < this.cols
+          ? this.grid[r][c]
+          : null;
+      })
+      .filter((n) => n);
   }
 
-  removeFloatingBalls() {
+  removeFloating() {
     const visited = new Set(),
       queue = [];
-
-    this.wallGroup.getChildren().forEach((b) => {
-      //todas las bolas de la fila superior (row 0)
-      if (b.row === 0) {
-        visited.add(`${b.row},${b.col}`);
-        queue.push(b);
+    this.grid[0].forEach((cell) => {
+      if (cell) {
+        visited.add(`0,${cell.col}`);
+        queue.push(cell);
       }
     });
-
     while (queue.length) {
-      const b = queue.shift(); //BFS para marcar todas las conectadas
-      this.getHexNeighbors(b).forEach((nb) => {
-        const key = `${nb.row},${nb.col}`;
+      const b = queue.shift();
+      this.getNeighbors(b).forEach((n) => {
+        const key = `${n.row},${n.col}`;
         if (!visited.has(key)) {
           visited.add(key);
-          queue.push(nb);
+          queue.push(n);
         }
       });
     }
-
-    this.wallGroup.getChildren().forEach((b) => {
-      const key = `${b.row},${b.col}`; //no están en visited → CAEN
-      if (!visited.has(key)) {
+    this.grid.flat().forEach((b) => {
+      if (b && !visited.has(`${b.row},${b.col}`)) {
         this.tweens.add({
-          targets: b, //libera celda  b.row, b.col  ya no ocupada y animamos la caída
+          targets: b,
           y: b.y + 100,
           alpha: 0,
           duration: 500,
@@ -336,12 +261,14 @@ export class Game extends Scene {
     });
   }
 
-  checkGameOver() {
-    this.wallGroup.getChildren().forEach((b) => {
-      if (b.y + this.gridSize / 2 >= this.gameOverLineY) {
-        this.scene.start("GameOver");
-      }
-    });
+  drawAimLine() {
+    this.aimLine.clear();
+    this.aimLine.lineStyle(2, 0xffffff, 1);
+    this.aimLine.beginPath();
+    this.aimLine.moveTo(this.launchPos.x, this.launchPos.y);
+    const p = this.input.activePointer;
+    this.aimLine.lineTo(p.x, p.y);
+    this.aimLine.strokePath();
   }
 
   drawGameOverLine() {
@@ -349,8 +276,18 @@ export class Game extends Scene {
       .graphics()
       .lineStyle(4, 0xff0000, 1)
       .beginPath()
-      .moveTo(512 - this.boundaryWidth / 2, this.gameOverLineY)
-      .lineTo(512 + this.boundaryWidth / 2, this.gameOverLineY)
+      .moveTo(this.origin.x - this.boundary.width / 2, this.gameOverY)
+      .lineTo(this.origin.x + this.boundary.width / 2, this.gameOverY)
       .strokePath();
+  }
+
+  checkGameOver() {
+    if (
+      this.grid
+        .flat()
+        .some((b) => b && b.y + this.gridSize / 2 >= this.gameOverY)
+    ) {
+      this.scene.start("GameOver");
+    }
   }
 }
