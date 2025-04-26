@@ -171,16 +171,12 @@ export class Game2 extends Scene {
 
   //fila prox
   renderNext() {
-    if (this.nextGroup) this.nextGroup.clear(true, true);
-    this.nextGroup = this.add.group();
-    const baseX = 400,
-      baseY = 720;
-    this.nextColors.forEach((col, i) => {
-      this.nextGroup
-        .create(baseX + i * this.gridSize, baseY, `ball-${col}`)
-        .setOrigin(0.5)
-        .setDisplaySize(this.gridSize, this.gridSize);
-    });
+    if (this.nextBallImage) this.nextBallImage.destroy();
+    const color = this.nextColors[0];
+    this.nextBallImage = this.add
+      .image(this.launchPos.x, this.launchPos.y, `ball-${color}`)
+      .setOrigin(0.5)
+      .setDisplaySize(this.gridSize * 1.3, this.gridSize * 1.3); // muestra más grande
   }
 
   //disparo balls
@@ -190,17 +186,19 @@ export class Game2 extends Scene {
 
     const color = this.nextColors.shift();
     this.nextColors.push(Phaser.Utils.Array.GetRandom(this.colors));
-    this.renderNext();
+
+    this.nextBallImage.destroy();
 
     const shot = this.balls
       .create(this.launchPos.x, this.launchPos.y, `ball-${color}`)
       .setOrigin(0.5)
       .setDisplaySize(this.gridSize, this.gridSize);
-    shot.body.setCircle(this.gridSize / 1.5);
-    shot.body.setOffset(this.gridSize / 2, this.gridSize / 2);
+    shot.body.setCircle(this.gridSize / 2 - 2);
+    shot.setBounce(1, 1);
+    shot.setCollideWorldBounds(true);
+    shot.body.setAllowGravity(false);
     shot.color = color;
     shot.isShot = true;
-    shot.setBounce(1).setCollideWorldBounds(true).body.setAllowGravity(false);
 
     const angle = Phaser.Math.Angle.Between(
       this.launchPos.x,
@@ -209,6 +207,8 @@ export class Game2 extends Scene {
       pointer.y
     );
     shot.setVelocity(Math.cos(angle) * 800, Math.sin(angle) * 800);
+
+    this.renderNext();
   }
 
   //colision pared/balls
@@ -343,7 +343,7 @@ export class Game2 extends Scene {
       .lineStyle(4, 0xff0000, 1)
       .beginPath()
       .moveTo(this.origin.x - this.boundary.width / 2, this.gameOverY)
-      .lineTo(this.origin.x + this.boundary.width / 2, this.gameOverY)
+      .lineTo(this.origin.x + this.boundary.width / 1.9, this.gameOverY)
       .strokePath();
   }
 
