@@ -31,10 +31,15 @@ export class Preloader extends Scene {
     this.load.video("introtait", "assets/videos/introtait.mp4");
     this.load.video("introubi", "assets/videos/introubi.mp4");
 
-    //pjs
+    //pj
     this.load.spritesheet("npc", "assets/entieties/npc_idle.png", {
       frameWidth: 64,
       frameHeight: 63,
+    });
+    //npc
+    this.load.spritesheet("pj", "assets/entieties/pj_idle.png", {
+      frameWidth: 111,
+      frameHeight: 137,
     });
   }
 

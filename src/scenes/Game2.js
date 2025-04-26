@@ -1,5 +1,16 @@
 import { Scene } from "phaser";
 
+const PATTERNS = {
+  Game2: [
+    ["purple", null, "purple", null, "purple", null, "purple"],
+    [null, "red", null, "red", null, "red", null],
+    ["blue", "pink", "blue", "pink", "blue", "pink", "blue"],
+    [null, "yellow", null, "yellow", null, "yellow", null],
+    ["green", "purple", "green", "purple", "green", "purple", "green"],
+    [null, "red", "pink", "red", "pink", "red", "pink"],
+  ],
+};
+
 export class Game2 extends Scene {
   constructor() {
     super("Game2");
@@ -15,6 +26,7 @@ export class Game2 extends Scene {
     this.minAimLength = 149;
     this.maxAimLength = 150;
     this.pointerSize = { width: 40, height: 75 };
+    this.shotsFired = 0;
   }
 
   create() {
@@ -41,7 +53,7 @@ export class Game2 extends Scene {
     //prox balls
     this.nextColors = [];
     for (let i = 0; i < this.nextCount; i++) {
-      this.nextColors.push(Phaser.Utils.Array.GetRandom(this.colors));
+      this.nextColors.push(this.getRandomNextColor());
     }
     this.renderNext();
 
@@ -64,6 +76,15 @@ export class Game2 extends Scene {
     });
     this.player = this.add.sprite(630, 670, "npc").setScale(1.5);
     this.player.play("npc");
+
+    this.anims.create({
+      key: "pj",
+      frames: this.anims.generateFrameNumbers("pj", { start: 0, end: 16 }),
+      frameRate: 20,
+      repeat: -1,
+    });
+    this.player = this.add.sprite(400, 650, "pj").setScale(1);
+    this.player.play("pj");
 
     //colision
     this.physics.add.collider(
@@ -105,7 +126,23 @@ export class Game2 extends Scene {
       }
     });
 
+    this.checkWin();
     this.checkGameOver();
+  }
+
+  //elige el próximo color entre los restantes
+  getRandomNextColor() {
+    const remaining = this.getRemainingColors();
+    return remaining.length
+      ? Phaser.Utils.Array.GetRandom(remaining)
+      : Phaser.Utils.Array.GetRandom(this.colors);
+  }
+
+  //devuelve colores q haya en la grilla
+  getRemainingColors() {
+    const set = new Set();
+    this.grid.flat().forEach((cell) => cell && set.add(cell.color));
+    return Array.from(set);
   }
 
   //puntero disparo
@@ -135,13 +172,16 @@ export class Game2 extends Scene {
 
   //grid balls
   initWall() {
-    for (let r = 0; r < this.rows - 5; r++) {
+    const pattern = PATTERNS[this.scene.key];
+    for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
-        this.addCell(r, c, Phaser.Utils.Array.GetRandom(this.colors));
+        const color = pattern?.[r]?.[c];
+        if (color) {
+          this.addCell(r, c, color);
+        }
       }
     }
   }
-
   //celdas de grilla
   addCell(row, col, color) {
     const x =
@@ -185,9 +225,8 @@ export class Game2 extends Scene {
     this.canShoot = false;
 
     const color = this.nextColors.shift();
-    this.nextColors.push(Phaser.Utils.Array.GetRandom(this.colors));
-
-    this.nextBallImage.destroy();
+    this.nextColors.push(this.getRandomNextColor());
+    if (this.nextBallImage) this.nextBallImage.destroy();
 
     const shot = this.balls
       .create(this.launchPos.x, this.launchPos.y, `ball-${color}`)
@@ -209,6 +248,20 @@ export class Game2 extends Scene {
     shot.setVelocity(Math.cos(angle) * 800, Math.sin(angle) * 800);
 
     this.renderNext();
+  }
+  //mueve todas las bolas una fila hacia abajo
+  shiftGridDown() {
+    for (let r = this.rows - 2; r >= 0; r--) {
+      for (let c = 0; c < this.cols; c++) {
+        const cell = this.grid[r][c];
+        if (cell) {
+          this.grid[r + 1][c] = cell;
+          cell.row = r + 1;
+          cell.y += this.gridSize;
+          this.grid[r][c] = null;
+        }
+      }
+    }
   }
 
   //colision pared/balls
@@ -345,6 +398,13 @@ export class Game2 extends Scene {
       .moveTo(this.origin.x - this.boundary.width / 2, this.gameOverY)
       .lineTo(this.origin.x + this.boundary.width / 1.9, this.gameOverY)
       .strokePath();
+  }
+
+  //win!!
+  checkWin() {
+    if (this.grid.flat().every((cell) => cell === null)) {
+      this.scene.start("Game2");
+    }
   }
 
   //update gameover

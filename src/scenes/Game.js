@@ -1,5 +1,18 @@
 import { Scene } from "phaser";
 
+const PATTERNS = {
+  Game: [
+    // cada sub-array corresponde a una fila (0 arriba, rows-1 abajo)
+    // valor = color o null (vacío)
+    ["green", "green", "green", "green", "green", "green", "green"], // fila 0: sólo verde (apex)
+    [null, "red", "red", "red", "red", "red", null], // fila 1: 5 rojas
+    [null, null, "yellow", "yellow", "yellow", null, null], // fila 2: 3 amarillas
+    [null, null, null, "purple", null, null, null], // fila 3: 1 púrpura
+    [null, "pink", "pink", "pink", "pink", "pink", null], // fila 4: 5 rosas
+    ["blue", "blue", "blue", "blue", "blue", "blue", "blue"], // fila 5 (base): 7 azules
+  ],
+};
+
 export class Game extends Scene {
   constructor() {
     super("Game");
@@ -41,7 +54,7 @@ export class Game extends Scene {
     //prox balls
     this.nextColors = [];
     for (let i = 0; i < this.nextCount; i++) {
-      this.nextColors.push(Phaser.Utils.Array.GetRandom(this.colors));
+      this.nextColors.push(this.getRandomNextColor());
     }
     this.renderNext();
 
@@ -62,8 +75,17 @@ export class Game extends Scene {
       frameRate: 8,
       repeat: -1,
     });
-    this.player = this.add.sprite(630, 658, "npc").setScale(1.5);
+    this.player = this.add.sprite(630, 665, "npc").setScale(1.2);
     this.player.play("npc");
+
+    this.anims.create({
+      key: "pj",
+      frames: this.anims.generateFrameNumbers("pj", { start: 0, end: 16 }),
+      frameRate: 20,
+      repeat: -1,
+    });
+    this.player = this.add.sprite(400, 640, "pj").setScale(1);
+    this.player.play("pj");
 
     //colision
     this.physics.add.collider(
@@ -105,7 +127,23 @@ export class Game extends Scene {
       }
     });
 
+    this.checkWin();
     this.checkGameOver();
+  }
+
+  //elige el próximo color entre los restantes
+  getRandomNextColor() {
+    const remaining = this.getRemainingColors();
+    return remaining.length
+      ? Phaser.Utils.Array.GetRandom(remaining)
+      : Phaser.Utils.Array.GetRandom(this.colors);
+  }
+
+  //devuelve colores q haya en la grilla
+  getRemainingColors() {
+    const set = new Set();
+    this.grid.flat().forEach((cell) => cell && set.add(cell.color));
+    return Array.from(set);
   }
 
   //puntero disparo
@@ -135,9 +173,13 @@ export class Game extends Scene {
 
   //grid balls
   initWall() {
-    for (let r = 0; r < this.rows - 5; r++) {
+    const pattern = PATTERNS[this.scene.key];
+    for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
-        this.addCell(r, c, Phaser.Utils.Array.GetRandom(this.colors));
+        const color = pattern?.[r]?.[c];
+        if (color) {
+          this.addCell(r, c, color);
+        }
       }
     }
   }
@@ -185,14 +227,13 @@ export class Game extends Scene {
     this.canShoot = false;
 
     const color = this.nextColors.shift();
-    this.nextColors.push(Phaser.Utils.Array.GetRandom(this.colors));
-
-    this.nextBallImage.destroy();
+    this.nextColors.push(this.getRandomNextColor());
+    if (this.nextBallImage) this.nextBallImage.destroy();
 
     const shot = this.balls
       .create(this.launchPos.x, this.launchPos.y, `ball-${color}`)
       .setOrigin(0.5)
-      .setDisplaySize(this.gridSize, this.gridSize); // vuelve a tamaño normal
+      .setDisplaySize(this.gridSize, this.gridSize);
     shot.body.setCircle(this.gridSize / 2 - 2);
     shot.setBounce(1, 1);
     shot.setCollideWorldBounds(true);
@@ -200,7 +241,6 @@ export class Game extends Scene {
     shot.color = color;
     shot.isShot = true;
 
-    // 2.4) Lanza la bola
     const angle = Phaser.Math.Angle.Between(
       this.launchPos.x,
       this.launchPos.y,
@@ -209,7 +249,6 @@ export class Game extends Scene {
     );
     shot.setVelocity(Math.cos(angle) * 800, Math.sin(angle) * 800);
 
-    // 2.5) Prepara la siguiente bola en launchPos
     this.renderNext();
   }
 
@@ -349,14 +388,21 @@ export class Game extends Scene {
       .strokePath();
   }
 
-  //update gameover
+  //win!!
+  checkWin() {
+    if (this.grid.flat().every((cell) => cell === null)) {
+      this.scene.start("Game2");
+    }
+  }
+
+  //gameover...
   checkGameOver() {
     if (
       this.grid
         .flat()
         .some((b) => b && b.y + this.gridSize / 2 >= this.gameOverY)
     ) {
-      this.scene.start("Game2");
+      this.scene.start("GameOver");
     }
   }
 }
