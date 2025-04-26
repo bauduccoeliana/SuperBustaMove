@@ -1,20 +1,22 @@
 import { Scene } from "phaser";
 
 export class Game2 extends Scene {
-    constructor () {
-        super("Game2");
-        this.colors = ["red", "green", "blue", "yellow", "purple", "pink"];
-        this.nextCount = 3;
-        this.gridSize = 40;
-        this.boundary = { width: 280, height: 600 };
-        this.origin = { x: 512, y: 405 };
-        this.launchPos = { x: 512, y: 620 };
-        this.canShoot = true;
-        this.rows = 12;
-        this.cols = 7;
-    }
+  constructor() {
+    super("Game2");
+    this.colors = ["red", "green", "blue", "yellow", "purple", "pink"];
+    this.nextCount = 3;
+    this.gridSize = 40;
+    this.boundary = { width: 282, height: 595 };
+    this.origin = { x: 510, y: 405 };
+    this.launchPos = { x: 512, y: 620 };
+    this.canShoot = true;
+    this.rows = 12;
+    this.cols = 7;
+    this.minAimLength = 149;
+    this.maxAimLength = 150;
+    this.pointerSize = { width: 40, height: 75 };
+  }
 
-    
   create() {
     // Mundo y límite
     const { width, height } = this.boundary;
@@ -26,6 +28,7 @@ export class Game2 extends Scene {
     );
     this.add
       .rectangle(this.origin.x, this.origin.y, width, height, 0xffffff, 0.1)
+      .setDepth(-1)
       .setStrokeStyle(2, 0xffffff, 0.3);
 
     // Grilla de bolas
@@ -35,19 +38,34 @@ export class Game2 extends Scene {
     );
     this.initWall();
 
-    // Próximas bolas
+    //prox balls
     this.nextColors = [];
     for (let i = 0; i < this.nextCount; i++) {
       this.nextColors.push(Phaser.Utils.Array.GetRandom(this.colors));
     }
     this.renderNext();
 
-    // Disparo
+    //puntero
     this.input.setDefaultCursor("crosshair");
-    this.aimLine = this.add.graphics();
+    this.aimPointer = this.add
+      .image(this.launchPos.x, this.launchPos.y, "pointer")
+      .setScale(4)
+      .setOrigin(0.85)
+      .setDisplaySize(80, 80)
+      .setVisible(false);
     this.input.on("pointerdown", (p) => this.shoot(p));
 
-    // Colisión bolas disparo vs pared
+    //animación idle
+    this.anims.create({
+      key: "npc",
+      frames: this.anims.generateFrameNumbers("npc", { start: 0, end: 5 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    this.player = this.add.sprite(630, 670, "npc").setScale(1.5);
+    this.player.play("npc");
+
+    //colision
     this.physics.add.collider(
       this.balls,
       this.balls,
@@ -56,20 +74,66 @@ export class Game2 extends Scene {
       this
     );
 
-    // Fondo y game over
     this.add
       .image(this.origin.x, this.origin.y - 25, "fondo2")
       .setDepth(-1)
       .setScale(1.02);
-    this.gameOverY = this.origin.y + height / 2 - 180;
+    //gameoverline
+    this.gameOverY = this.origin.y + height / 2 - 150;
     this.drawGameOverLine();
   }
 
   update() {
-    this.drawAimLine();
+    this.updateAimPointer();
+    // Detección y pegado al techo del boundary
+    const topY = this.origin.y - this.boundary.height / 2 + this.gridSize / 2;
+    this.balls.getChildren().forEach((shot) => {
+      if (shot.isShot && shot.y <= topY) {
+        const col = Phaser.Math.Clamp(
+          Math.round(
+            (shot.x -
+              (this.origin.x - this.boundary.width / 2 + this.gridSize / 2)) /
+              this.gridSize
+          ),
+          0,
+          this.cols - 1
+        );
+        this.placeShot(0, col, shot.color);
+        shot.destroy();
+        this.checkCluster(this.grid[0][col]);
+        this.canShoot = true;
+      }
+    });
+
     this.checkGameOver();
   }
 
+  //puntero disparo
+  updateAimPointer() {
+    const p = this.input.activePointer;
+    const dx = p.x - this.launchPos.x;
+    const dy = p.y - this.launchPos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const length = Phaser.Math.Clamp(
+      dist,
+      this.minAimLength,
+      this.maxAimLength
+    );
+    const angle = Phaser.Math.Angle.Between(
+      this.launchPos.x,
+      this.launchPos.y,
+      p.x,
+      p.y
+    );
+
+    this.aimPointer
+      .setVisible(true)
+      .setPosition(this.launchPos.x, this.launchPos.y)
+      .setRotation(angle + Phaser.Math.DegToRad(90))
+      .setDisplaySize(this.pointerSize.width, length);
+  }
+
+  //grid balls
   initWall() {
     for (let r = 0; r < this.rows - 5; r++) {
       for (let c = 0; c < this.cols; c++) {
@@ -78,6 +142,7 @@ export class Game2 extends Scene {
     }
   }
 
+  //celdas de grilla
   addCell(row, col, color) {
     const x =
       this.origin.x -
@@ -94,7 +159,8 @@ export class Game2 extends Scene {
       .setOrigin(0.5)
       .setDisplaySize(this.gridSize, this.gridSize);
 
-    cell.body.setCircle(this.gridSize / 2 - 2);
+    cell.body.setCircle(this.gridSize / 1.5);
+    cell.body.setOffset(this.gridSize / 2, this.gridSize / 2);
     cell.setImmovable(false);
     cell.isShot = false;
     cell.row = row;
@@ -103,6 +169,7 @@ export class Game2 extends Scene {
     this.grid[row][col] = cell;
   }
 
+  //fila prox
   renderNext() {
     if (this.nextGroup) this.nextGroup.clear(true, true);
     this.nextGroup = this.add.group();
@@ -116,6 +183,7 @@ export class Game2 extends Scene {
     });
   }
 
+  //disparo balls
   shoot(pointer) {
     if (!this.canShoot) return;
     this.canShoot = false;
@@ -126,9 +194,10 @@ export class Game2 extends Scene {
 
     const shot = this.balls
       .create(this.launchPos.x, this.launchPos.y, `ball-${color}`)
-      .setOrigin(1)
+      .setOrigin(0.5)
       .setDisplaySize(this.gridSize, this.gridSize);
-    shot.body.setCircle(this.gridSize / 2 - 2);
+    shot.body.setCircle(this.gridSize / 1.5);
+    shot.body.setOffset(this.gridSize / 2, this.gridSize / 2);
     shot.color = color;
     shot.isShot = true;
     shot.setBounce(1).setCollideWorldBounds(true).body.setAllowGravity(false);
@@ -142,6 +211,7 @@ export class Game2 extends Scene {
     shot.setVelocity(Math.cos(angle) * 800, Math.sin(angle) * 800);
   }
 
+  //colision pared/balls
   handleCollision(shot, cell) {
     shot.body.setVelocity(0);
     this.physics.world.disable(shot);
@@ -153,6 +223,7 @@ export class Game2 extends Scene {
     this.time.delayedCall(100, () => (this.canShoot = true));
   }
 
+  //busca posición vacía en el grid
   findGridPos(r, c, shot) {
     const neighbors = [
       [0, -1],
@@ -173,6 +244,7 @@ export class Game2 extends Scene {
     this.addCell(row, col, color);
   }
 
+  //arma conjunto-color
   checkCluster(start) {
     const stack = [start],
       visited = new Set(),
@@ -196,6 +268,7 @@ export class Game2 extends Scene {
     }
   }
 
+  //busca vecinos de = color
   getNeighbors(ball) {
     const { row, col } = ball;
     const offs =
@@ -227,6 +300,7 @@ export class Game2 extends Scene {
       .filter((n) => n);
   }
 
+  //elimina balls sueltas
   removeFloating() {
     const visited = new Set(),
       queue = [];
@@ -262,16 +336,7 @@ export class Game2 extends Scene {
     });
   }
 
-  drawAimLine() {
-    this.aimLine.clear();
-    this.aimLine.lineStyle(2, 0xffffff, 1);
-    this.aimLine.beginPath();
-    this.aimLine.moveTo(this.launchPos.x, this.launchPos.y);
-    const p = this.input.activePointer;
-    this.aimLine.lineTo(p.x, p.y);
-    this.aimLine.strokePath();
-  }
-
+  //linea gameover
   drawGameOverLine() {
     this.add
       .graphics()
@@ -282,13 +347,14 @@ export class Game2 extends Scene {
       .strokePath();
   }
 
+  //update gameover
   checkGameOver() {
     if (
       this.grid
         .flat()
         .some((b) => b && b.y + this.gridSize / 2 >= this.gameOverY)
     ) {
-      this.scene.start("GameOver");
+      this.scene.start("MainMenu");
     }
   }
 }

@@ -26,9 +26,16 @@ export class Preloader extends Scene {
     this.load.image("fondo1", "public/assets/fondo.jpg");
     this.load.image("fondo2", "public/assets/fondo2.png");
     this.load.image("rectangle", "/assets/rectangle.png");
+    this.load.image("pointer", "/assets/puntero.png");
     this.load.video("introgba", "assets/videos/introgba.mp4");
     this.load.video("introtait", "assets/videos/introtait.mp4");
     this.load.video("introubi", "assets/videos/introubi.mp4");
+
+    //pjs
+    this.load.spritesheet("npc", "assets/entieties/npc_idle.png", {
+      frameWidth: 64,
+      frameHeight: 63,
+    });
   }
 
   create() {

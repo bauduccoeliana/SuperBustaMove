@@ -7,11 +7,14 @@ export class Game extends Scene {
     this.nextCount = 3;
     this.gridSize = 40;
     this.boundary = { width: 282, height: 595 };
-    this.origin = { x: 512, y: 405 };
+    this.origin = { x: 510, y: 405 };
     this.launchPos = { x: 512, y: 620 };
     this.canShoot = true;
     this.rows = 12;
     this.cols = 7;
+    this.minAimLength = 149;
+    this.maxAimLength = 150;
+    this.pointerSize = { width: 40, height: 75 };
   }
 
   create() {
@@ -44,8 +47,23 @@ export class Game extends Scene {
 
     //puntero
     this.input.setDefaultCursor("crosshair");
-    this.aimLine = this.add.graphics();
+    this.aimPointer = this.add
+      .image(this.launchPos.x, this.launchPos.y, "pointer")
+      .setScale(4)
+      .setOrigin(0.85)
+      .setDisplaySize(80, 80)
+      .setVisible(false);
     this.input.on("pointerdown", (p) => this.shoot(p));
+
+    //animación idle
+    this.anims.create({
+      key: "npc",
+      frames: this.anims.generateFrameNumbers("npc", { start: 0, end: 5 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    this.player = this.add.sprite(630, 658, "npc").setScale(1.5);
+    this.player.play("npc");
 
     //colision
     this.physics.add.collider(
@@ -60,14 +78,59 @@ export class Game extends Scene {
       .image(this.origin.x, this.origin.y - 25, "fondo1")
       .setDepth(-1)
       .setScale(1.02);
-      //gameoverline
-    this.gameOverY = this.origin.y + height / 2 - 180;
+    //gameoverline
+    this.gameOverY = this.origin.y + height / 2 - 150;
     this.drawGameOverLine();
   }
 
   update() {
-    this.drawAimLine();
+    this.updateAimPointer();
+    // Detección y pegado al techo del boundary
+    const topY = this.origin.y - this.boundary.height / 2 + this.gridSize / 2;
+    this.balls.getChildren().forEach((shot) => {
+      if (shot.isShot && shot.y <= topY) {
+        const col = Phaser.Math.Clamp(
+          Math.round(
+            (shot.x -
+              (this.origin.x - this.boundary.width / 2 + this.gridSize / 2)) /
+              this.gridSize
+          ),
+          0,
+          this.cols - 1
+        );
+        this.placeShot(0, col, shot.color);
+        shot.destroy();
+        this.checkCluster(this.grid[0][col]);
+        this.canShoot = true;
+      }
+    });
+
     this.checkGameOver();
+  }
+
+  //puntero disparo
+  updateAimPointer() {
+    const p = this.input.activePointer;
+    const dx = p.x - this.launchPos.x;
+    const dy = p.y - this.launchPos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const length = Phaser.Math.Clamp(
+      dist,
+      this.minAimLength,
+      this.maxAimLength
+    );
+    const angle = Phaser.Math.Angle.Between(
+      this.launchPos.x,
+      this.launchPos.y,
+      p.x,
+      p.y
+    );
+
+    this.aimPointer
+      .setVisible(true)
+      .setPosition(this.launchPos.x, this.launchPos.y)
+      .setRotation(angle + Phaser.Math.DegToRad(90))
+      .setDisplaySize(this.pointerSize.width, length);
   }
 
   //grid balls
@@ -80,7 +143,7 @@ export class Game extends Scene {
   }
 
   //celdas de grilla
-  addCell(row, col, color) { 
+  addCell(row, col, color) {
     const x =
       this.origin.x -
       this.boundary.width / 2 +
@@ -96,7 +159,8 @@ export class Game extends Scene {
       .setOrigin(0.5)
       .setDisplaySize(this.gridSize, this.gridSize);
 
-    cell.body.setCircle(this.gridSize / 2 - 2);
+    cell.body.setCircle(this.gridSize / 1.5);
+    cell.body.setOffset(this.gridSize / 2, this.gridSize / 2);
     cell.setImmovable(false);
     cell.isShot = false;
     cell.row = row;
@@ -130,9 +194,10 @@ export class Game extends Scene {
 
     const shot = this.balls
       .create(this.launchPos.x, this.launchPos.y, `ball-${color}`)
-      .setOrigin(1)
+      .setOrigin(0.5)
       .setDisplaySize(this.gridSize, this.gridSize);
-    shot.body.setCircle(this.gridSize / 2 - 2);
+    shot.body.setCircle(this.gridSize / 1.5);
+    shot.body.setOffset(this.gridSize / 2, this.gridSize / 2);
     shot.color = color;
     shot.isShot = true;
     shot.setBounce(1).setCollideWorldBounds(true).body.setAllowGravity(false);
@@ -269,17 +334,6 @@ export class Game extends Scene {
         });
       }
     });
-  }
-
-  //linea disparo
-  drawAimLine() {
-    this.aimLine.clear();
-    this.aimLine.lineStyle(2, 0xffffff, 1);
-    this.aimLine.beginPath();
-    this.aimLine.moveTo(this.launchPos.x, this.launchPos.y);
-    const p = this.input.activePointer;
-    this.aimLine.lineTo(p.x, p.y);
-    this.aimLine.strokePath();
   }
 
   //linea gameover
