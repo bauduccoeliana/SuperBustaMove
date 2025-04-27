@@ -7,7 +7,7 @@ export class MainMenu extends Scene {
 
   create() {
     this.add.image(512, 384, "background");
-    this.add.image(512, 300, "logo").setScale(1.5);
+    this.add.image(512, 300, "logo").setScale(1.2);
 
     this.enterKey = this.input.keyboard.addKey(
       Phaser.Input.Keyboard.KeyCodes.ENTER
@@ -28,7 +28,7 @@ export class MainMenu extends Scene {
 
   update() {
     if (Phaser.Input.Keyboard.JustDown(this.enterKey)) {
-      this.scene.start("Game");
+      this.scene.start("Selec1");
     }
   }
 }

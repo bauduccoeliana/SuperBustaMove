@@ -18,6 +18,7 @@ export class Game extends Scene {
     super("Game");
     this.colors = ["red", "green", "blue", "yellow", "purple", "pink"];
     this.nextCount = 3;
+    this.score = 0;
     this.gridSize = 40;
     this.boundary = { width: 282, height: 595 };
     this.origin = { x: 510, y: 405 };
@@ -50,6 +51,15 @@ export class Game extends Scene {
       Array(this.cols).fill(null)
     );
     this.initWall();
+
+    //puntaje
+    this.scoreText = this.add.text(20, 20, "P0", {
+      fontFamily: "Arial Black", // Fuente gruesa y cuadrada del sistema
+      fontSize: "32px",
+      color: "#00caff", // Azul claro
+      stroke: "#804000", // Contorno negro opcional para que resalte
+      strokeThickness: 4,
+    });
 
     //prox balls
     this.nextColors = [];
@@ -129,6 +139,14 @@ export class Game extends Scene {
 
     this.checkWin();
     this.checkGameOver();
+  }
+
+  //puntos
+  sumarPuntos() {
+    this.score += 100;
+    this.scoreText.setText("P" + this.score);
+    this.registry.set('game1', this.score);
+    
   }
 
   //elige el próximo color entre los restantes
@@ -304,6 +322,7 @@ export class Game extends Scene {
       cluster.forEach((b) => {
         this.grid[b.row][b.col] = null;
         b.destroy();
+        this.sumarPuntos();
       });
       this.removeFloating();
     }

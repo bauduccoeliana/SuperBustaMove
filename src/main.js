@@ -7,6 +7,9 @@ import { IntroUbi } from "./scenes/IntroUbi";
 import { IntroTait } from "./scenes/IntroTait";
 import { MainMenu } from "./scenes/MainMenu";
 import { Preloader } from "./scenes/Preloader";
+import { Selec1 } from "./scenes/Selec1";
+import { Selec2 } from "./scenes/Selec2";
+import { Selec3 } from "./scenes/Selec3";
 
 //  Find out more information about the Game Config at:
 //  https://newdocs.phaser.io/docs/3.70.0/Phaser.Types.Core.GameConfig
@@ -34,6 +37,9 @@ const config = {
     IntroUbi,
     MainMenu,
     Preloader,
+    Selec1,
+    Selec2,
+    Selec3,
   ],
 };
 

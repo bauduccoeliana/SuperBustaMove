@@ -2,7 +2,6 @@ import { Scene } from "phaser";
 
 const PATTERNS = {
   Game2: [
-    ["purple", null, "purple", null, "purple", null, "purple"],
     [null, "red", null, "red", null, "red", null],
     ["blue", "pink", "blue", "pink", "blue", "pink", "blue"],
     [null, "yellow", null, "yellow", null, "yellow", null],
@@ -16,6 +15,7 @@ export class Game2 extends Scene {
     super("Game2");
     this.colors = ["red", "green", "blue", "yellow", "purple", "pink"];
     this.nextCount = 3;
+    this.score = 0;
     this.gridSize = 40;
     this.boundary = { width: 282, height: 595 };
     this.origin = { x: 510, y: 405 };
@@ -30,7 +30,9 @@ export class Game2 extends Scene {
   }
 
   create() {
-    // Mundo y límite
+    const Game = this.registry.get("game1") || 0;
+
+    //area de juego
     const { width, height } = this.boundary;
     this.physics.world.setBounds(
       this.origin.x - width / 2,
@@ -49,6 +51,15 @@ export class Game2 extends Scene {
       Array(this.cols).fill(null)
     );
     this.initWall();
+
+    //puntaje
+    this.scoreText = this.add.text(20, 20, "P0", {
+      fontFamily: "Arial Black", // Fuente gruesa y cuadrada del sistema
+      fontSize: "32px",
+      color: "#00caff", // Azul claro
+      stroke: "#804000", // Contorno negro opcional para que resalte
+      strokeThickness: 4,
+    });
 
     //prox balls
     this.nextColors = [];
@@ -130,6 +141,12 @@ export class Game2 extends Scene {
     this.checkGameOver();
   }
 
+  //puntos
+  sumarPuntos() {
+    this.score += 100;
+    this.scoreText.setText("P " + this.score);
+  }
+
   //elige el próximo color entre los restantes
   getRandomNextColor() {
     const remaining = this.getRemainingColors();
@@ -173,7 +190,7 @@ export class Game2 extends Scene {
   //grid balls
   initWall() {
     const pattern = PATTERNS[this.scene.key];
-    for (let r = 0; r < this.rows; r++) {
+    for (let r = 0; r < this.rows - 6; r++) {
       for (let c = 0; c < this.cols; c++) {
         const color = pattern?.[r]?.[c];
         if (color) {
@@ -246,9 +263,14 @@ export class Game2 extends Scene {
       pointer.y
     );
     shot.setVelocity(Math.cos(angle) * 800, Math.sin(angle) * 800);
+    this.shotsFired++;
+    if (this.shotsFired % 2 === 0) {
+      this.shiftGridDown();
+    }
 
     this.renderNext();
   }
+
   //mueve todas las bolas una fila hacia abajo
   shiftGridDown() {
     for (let r = this.rows - 2; r >= 0; r--) {
@@ -316,6 +338,7 @@ export class Game2 extends Scene {
       cluster.forEach((b) => {
         this.grid[b.row][b.col] = null;
         b.destroy();
+        this.sumarPuntos();
       });
       this.removeFloating();
     }

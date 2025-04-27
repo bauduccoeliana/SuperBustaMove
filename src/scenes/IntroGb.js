@@ -6,6 +6,7 @@ export class IntroGb extends Scene {
   }
 
   create() {
+    this.add.image(512, 384, "transicion").setOrigin(0.5);
     const video = this.add.video(
       this.cameras.main.centerX,
       this.cameras.main.centerY,
@@ -14,11 +15,6 @@ export class IntroGb extends Scene {
     video.setOrigin(0.5).setScale(0.75);
     video.play();
     video.once("complete", () => {
-      this.scene.start("IntroUbi");
-    });
-
-    this.input.once("pointerdown", () => {
-      video.stop();
       this.scene.start("IntroUbi");
     });
   }

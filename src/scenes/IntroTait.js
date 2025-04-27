@@ -6,6 +6,7 @@ export class IntroTait extends Scene {
   }
 
   create() {
+    this.add.image(512, 384, "transicion").setOrigin(0.5);
     const video = this.add.video(
       this.cameras.main.centerX,
       this.cameras.main.centerY,

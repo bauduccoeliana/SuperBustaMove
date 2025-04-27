@@ -6,6 +6,7 @@ export class IntroUbi extends Scene {
   }
 
   create() {
+    this.add.image(512, 384, "transicion");
     const video = this.add.video(
       this.cameras.main.centerX,
       this.cameras.main.centerY,
