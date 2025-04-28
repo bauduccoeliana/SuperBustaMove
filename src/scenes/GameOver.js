@@ -7,7 +7,7 @@ export class GameOver extends Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(0xff0000);
-
+    this.sound.shutdown();
     this.add.image(512, 384, "GO").setAlpha(0.5);
 
     this.input.once("pointerdown", () => {

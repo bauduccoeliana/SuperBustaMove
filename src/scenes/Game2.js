@@ -27,10 +27,12 @@ export class Game2 extends Scene {
     this.maxAimLength = 150;
     this.pointerSize = { width: 40, height: 75 };
     this.shotsFired = 0;
+    this.isWin = false;
+    this.isGameOver = false;
   }
 
   create() {
-    const Game = this.registry.get("game1") || 0;
+    this.score = this.registry.get("puntos") || 0;
 
     //area de juego
     const { width, height } = this.boundary;
@@ -76,7 +78,7 @@ export class Game2 extends Scene {
     });
 
     //puntaje
-    this.scoreText = this.add.text(90, 20, "P0", {
+    this.scoreText = this.add.text(90, 20, `P00${this.score}`, {
       fontFamily: "Arial Black", // Fuente gruesa y cuadrada del sistema
       fontSize: "32px",
       color: "#00caff", // Azul claro
@@ -184,7 +186,8 @@ export class Game2 extends Scene {
   //puntos
   sumarPuntos() {
     this.score += 100;
-    this.scoreText.setText("P " + this.score);
+    this.scoreText.setText("P00" + this.score);
+    this.registry.set("puntos", this.score);
   }
 
   //elige el próximo color entre los restantes
@@ -466,11 +469,12 @@ export class Game2 extends Scene {
   //win!!
   checkWin() {
     if (this.grid.flat().every((cell) => cell === null)) {
-      this.physics.pause();
-      this.shutdown();
+      if (!this.isWin) {
+        this.physics.pause();
+        this.shutdown();
 
-      const winSound = this.sound.play("wintheme");
-      winSound.once("complete", () => {
+        const winSound = this.sound.add("wintheme");
+        winSound.play({ volume: 0.5 });
         const cx = this.cameras.main.centerX;
         const cy = this.cameras.main.centerY;
         this.add
@@ -484,9 +488,10 @@ export class Game2 extends Scene {
           .setOrigin(0.5);
 
         winSound.once("complete", () => {
-          this.scene.start("Game2");
+          this.scene.start("MainMenu");
         });
-      });
+        this.isWin = true;
+      }
     }
   }
 
@@ -497,11 +502,12 @@ export class Game2 extends Scene {
         .flat()
         .some((b) => b && b.y + this.gridSize / 2 >= this.gameOverY)
     ) {
-      this.physics.pause();
-      this.shutdown();
+      if (!this.isGameOver) {
+        this.physics.pause();
+        this.shutdown();
 
-      const overSound = this.sound.play("gotheme");
-      overSound.once("complete", () => {
+        const overSound = this.sound.add("gotheme");
+        overSound.play({ volume: 0.5 });
         const cx = this.cameras.main.centerX;
         const cy = this.cameras.main.centerY;
         this.add
@@ -517,7 +523,8 @@ export class Game2 extends Scene {
         overSound.once("complete", () => {
           this.scene.start("GameOver");
         });
-      });
+        this.isGameOver = true;
+      }
     }
   }
 }
