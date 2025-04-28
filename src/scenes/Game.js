@@ -52,12 +52,26 @@ export class Game extends Scene {
     );
     this.initWall();
 
+    //musica
+    this.sound.stopAll();
+    this.theme2 = this.sound.add("theme2", { volume: 1, loop: true });
+    this.theme2.play();
+
     //puntaje
-    this.scoreText = this.add.text(20, 20, "P0", {
-      fontFamily: "Arial Black", // Fuente gruesa y cuadrada del sistema
+    this.scoreText = this.add.text(110, 20, "P0", {
+      fontFamily: "Arial Black",
       fontSize: "32px",
-      color: "#00caff", // Azul claro
-      stroke: "#804000", // Contorno negro opcional para que resalte
+      color: "#00caff",
+      stroke: "#804000",
+      strokeThickness: 4,
+    });
+
+    //round
+    this.roundText = this.add.text(420, 20, "ROUND N1", {
+      fontFamily: "Arial Black",
+      fontSize: "32px",
+      color: "#00caff",
+      stroke: "#804000",
       strokeThickness: 4,
     });
 
@@ -141,12 +155,18 @@ export class Game extends Scene {
     this.checkGameOver();
   }
 
+  shutdown() {
+    if (this.theme2) {
+      this.theme2.stop();
+      this.theme2.destroy();
+    }
+  }
+
   //puntos
   sumarPuntos() {
     this.score += 100;
     this.scoreText.setText("P" + this.score);
-    this.registry.set('game1', this.score);
-    
+    this.registry.set("game1", this.score);
   }
 
   //elige el próximo color entre los restantes
@@ -410,6 +430,7 @@ export class Game extends Scene {
   //win!!
   checkWin() {
     if (this.grid.flat().every((cell) => cell === null)) {
+      this.shutdown();
       this.scene.start("Game2");
     }
   }
@@ -421,6 +442,7 @@ export class Game extends Scene {
         .flat()
         .some((b) => b && b.y + this.gridSize / 2 >= this.gameOverY)
     ) {
+      this.shutdown();
       this.scene.start("GameOver");
     }
   }

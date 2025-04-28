@@ -6,6 +6,7 @@ export class Selec1 extends Scene {
   }
 
   create() {
+    this.sound.stopAll();
     this.add.image(512, 384, "transicion").setOrigin(0.5);
     const video = this.add.video(
       this.cameras.main.centerX,

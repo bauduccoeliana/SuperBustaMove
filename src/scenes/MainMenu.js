@@ -8,6 +8,8 @@ export class MainMenu extends Scene {
   create() {
     this.add.image(512, 384, "background");
     this.add.image(512, 300, "logo").setScale(1.2);
+    this.theme1 = this.sound.add("theme1", { volume: 1, loop: true });
+    this.theme1.play();
 
     this.enterKey = this.input.keyboard.addKey(
       Phaser.Input.Keyboard.KeyCodes.ENTER

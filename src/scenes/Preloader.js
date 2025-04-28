@@ -19,12 +19,17 @@ export class Preloader extends Scene {
     this.load.image("fondo2", "/assets/fondo2.png");
     this.load.image("rectangle", "/assets/rectangle.png");
     this.load.image("pointer", "/assets/puntero.png");
+    //videos
     this.load.video("introgba", "/assets/videos/introgba.mp4");
     this.load.video("introtait", "/assets/videos/introtait.mp4");
     this.load.video("introubi", "/assets/videos/introubi.mp4");
     this.load.video("select1", "/assets/videos/select1.mp4");
     this.load.video("select2", "/assets/videos/select2.mp4");
     this.load.video("select3", "/assets/videos/select3.mp4");
+    //sonidos/musica
+    this.load.audio("theme1", "/assets/music/theme1.mp3");
+    this.load.audio("theme2", "/assets/music/theme2.mp3");
+    this.load.audio("theme3", "/assets/music/theme3.mp3");
 
     //pj
     this.load.spritesheet("npc", "./assets/entieties/npc_idle.png", {

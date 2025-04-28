@@ -52,12 +52,26 @@ export class Game2 extends Scene {
     );
     this.initWall();
 
+    this.sound.stopAll();
+    this.theme3 = this.sound.add("theme3", { volume: 1, loop: true });
+    this.theme3.play();
+
     //puntaje
-    this.scoreText = this.add.text(20, 20, "P0", {
+    this.scoreText = this.add.text(90, 20, "P0", {
       fontFamily: "Arial Black", // Fuente gruesa y cuadrada del sistema
       fontSize: "32px",
       color: "#00caff", // Azul claro
       stroke: "#804000", // Contorno negro opcional para que resalte
+      strokeThickness: 4,
+    });
+
+    //round
+
+    this.roundText = this.add.text(420, 20, "ROUND N2", {
+      fontFamily: "Arial Black",
+      fontSize: "32px",
+      color: "#00caff",
+      stroke: "#804000",
       strokeThickness: 4,
     });
 
@@ -139,6 +153,13 @@ export class Game2 extends Scene {
 
     this.checkWin();
     this.checkGameOver();
+  }
+
+  shutdown() {
+    if (this.theme3) {
+      this.theme3.stop();
+      this.theme3.destroy();
+    }
   }
 
   //puntos
@@ -426,6 +447,7 @@ export class Game2 extends Scene {
   //win!!
   checkWin() {
     if (this.grid.flat().every((cell) => cell === null)) {
+      this.shutdown();
       this.scene.start("Game2");
     }
   }
@@ -437,6 +459,7 @@ export class Game2 extends Scene {
         .flat()
         .some((b) => b && b.y + this.gridSize / 2 >= this.gameOverY)
     ) {
+      this.shutdown();
       this.scene.start("MainMenu");
     }
   }
