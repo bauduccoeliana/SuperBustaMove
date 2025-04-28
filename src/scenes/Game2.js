@@ -2,11 +2,12 @@ import { Scene } from "phaser";
 
 const PATTERNS = {
   Game2: [
-    [null, "red", null, "red", null, "red", null],
-    ["blue", "pink", "blue", "pink", "blue", "pink", "blue"],
-    [null, "yellow", null, "yellow", null, "yellow", null],
-    ["green", "purple", "green", "purple", "green", "purple", "green"],
-    [null, "red", "pink", "red", "pink", "red", "pink"],
+    [null, null, "green", "green", "green", null, null],
+    [null, "red", "red", "yellow", "red", "red", null],
+    ["blue", null, "purple", "purple", "purple", null, "blue"],
+    ["pink", "yellow", "blue", "yellow", "blue", "yellow", "pink"],
+    [null, "green", "pink", "green", "pink", "green", null],
+    ["purple", "purple", "purple", "purple", "purple", "purple", "purple"],
   ],
 };
 
@@ -307,7 +308,7 @@ export class Game2 extends Scene {
     );
     shot.setVelocity(Math.cos(angle) * 800, Math.sin(angle) * 800);
     this.shotsFired++;
-    if (this.shotsFired % 2 === 0) {
+    if (this.shotsFired % 5 === 0) {
       this.shiftGridDown();
     }
 
@@ -421,26 +422,34 @@ export class Game2 extends Scene {
 
   //elimina balls sueltas
   removeFloating() {
-    const visited = new Set(),
-      queue = [];
-    this.grid[0].forEach((cell) => {
-      if (cell) {
-        visited.add(`0,${cell.col}`);
+    const visited = new Set();
+    const queue = [];
+
+    const topLimit =
+      this.origin.y - this.boundary.height / 2 + this.gridSize / 2 + 1;
+
+    this.grid.flat().forEach((cell) => {
+      if (cell && cell.y <= topLimit) {
+        const key = `${cell.row},${cell.col}`;
+        visited.add(key);
         queue.push(cell);
       }
     });
+
     while (queue.length) {
       const b = queue.shift();
-      this.getNeighbors(b).forEach((n) => {
+      for (const n of this.getNeighbors(b)) {
         const key = `${n.row},${n.col}`;
-        if (!visited.has(key)) {
+        if (n && !visited.has(key)) {
           visited.add(key);
           queue.push(n);
         }
-      });
+      }
     }
+
     this.grid.flat().forEach((b) => {
-      if (b && !visited.has(`${b.row},${b.col}`)) {
+      const key = b && `${b.row},${b.col}`;
+      if (b && !visited.has(key)) {
         this.tweens.add({
           targets: b,
           y: b.y + 100,
@@ -506,8 +515,8 @@ export class Game2 extends Scene {
         this.physics.pause();
         this.shutdown();
 
-        const overSound = this.sound.add("gotheme");
-        overSound.play({ volume: 0.5 });
+        this.overSound = this.sound.add("gotheme");
+        this.overSound.play({ volume: 0.5 });
         const cx = this.cameras.main.centerX;
         const cy = this.cameras.main.centerY;
         this.add
@@ -520,7 +529,7 @@ export class Game2 extends Scene {
           })
           .setOrigin(0.5);
 
-        overSound.once("complete", () => {
+        this.overSound.once("complete", () => {
           this.scene.start("GameOver");
         });
         this.isGameOver = true;

@@ -488,8 +488,8 @@ export class Game extends Scene {
         this.physics.pause();
         this.shutdown();
 
-        const overSound = this.sound.add("gotheme");
-        overSound.play({ volume: 0.5 });
+        this.overSound = this.sound.add("gotheme");
+        this.overSound.play({ volume: 0.5 });
         const cx = this.cameras.main.centerX;
         const cy = this.cameras.main.centerY;
         this.add
@@ -502,7 +502,7 @@ export class Game extends Scene {
           })
           .setOrigin(0.5);
 
-        overSound.once("complete", () => {
+        this.overSound.once("complete", () => {
           this.scene.start("GameOver");
         });
         this.isGameOver = true;
