@@ -33,7 +33,6 @@ const config = {
     Game,
     Game2,
     GameOver,
-    InputManager,
     IntroGb,
     IntroTait,
     IntroUbi,
