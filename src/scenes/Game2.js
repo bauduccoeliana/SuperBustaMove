@@ -56,6 +56,25 @@ export class Game2 extends Scene {
     this.theme3 = this.sound.add("theme3", { volume: 1, loop: true });
     this.theme3.play();
 
+    //text
+    const startText = this.add
+      .text(512, 400, "READY?", {
+        fontFamily: "Arial Black",
+        fontSize: "64px",
+        color: "#00caff",
+        stroke: "#804000",
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5);
+    this.canShoot = false;
+    this.time.delayedCall(2000, () => {
+      startText.setText("GO!");
+      this.time.delayedCall(1000, () => {
+        startText.destroy();
+        this.canShoot = true;
+      });
+    });
+
     //puntaje
     this.scoreText = this.add.text(90, 20, "P0", {
       fontFamily: "Arial Black", // Fuente gruesa y cuadrada del sistema
@@ -447,8 +466,27 @@ export class Game2 extends Scene {
   //win!!
   checkWin() {
     if (this.grid.flat().every((cell) => cell === null)) {
+      this.physics.pause();
       this.shutdown();
-      this.scene.start("Game2");
+
+      const winSound = this.sound.play("wintheme");
+      winSound.once("complete", () => {
+        const cx = this.cameras.main.centerX;
+        const cy = this.cameras.main.centerY;
+        this.add
+          .text(cx, cy, "WIN", {
+            fontFamily: "Arial Black",
+            fontSize: "64px",
+            color: "#00caff",
+            stroke: "#804000",
+            strokeThickness: 4,
+          })
+          .setOrigin(0.5);
+
+        winSound.once("complete", () => {
+          this.scene.start("Game2");
+        });
+      });
     }
   }
 
@@ -459,8 +497,27 @@ export class Game2 extends Scene {
         .flat()
         .some((b) => b && b.y + this.gridSize / 2 >= this.gameOverY)
     ) {
+      this.physics.pause();
       this.shutdown();
-      this.scene.start("MainMenu");
+
+      const overSound = this.sound.play("gotheme");
+      overSound.once("complete", () => {
+        const cx = this.cameras.main.centerX;
+        const cy = this.cameras.main.centerY;
+        this.add
+          .text(cx, cy, "YOU LOSE", {
+            fontFamily: "Arial Black",
+            fontSize: "64px",
+            color: "#00caff",
+            stroke: "#804000",
+            strokeThickness: 4,
+          })
+          .setOrigin(0.5);
+
+        overSound.once("complete", () => {
+          this.scene.start("GameOver");
+        });
+      });
     }
   }
 }
